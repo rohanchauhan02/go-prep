@@ -42,7 +42,7 @@ func GetLogger() *Logger {
 // format: [LEVEL] file:line message
 func (l *Logger) log(level Level, msg string) {
 	if level < l.level { return }
-	_, file, line, _ := runtime.Caller(2)
+	_, _, _, _ = runtime.Caller(2)
 	l.mu.Lock(); defer l.mu.Unlock()
 	// TODO: l.logger.Printf(...)
 }
