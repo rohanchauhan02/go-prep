@@ -1,0 +1,17 @@
+# Compiled Go binaries (any file named after the folder)
+q*/q*
+
+# Go build cache
+*.test
+*.out
+
+# Python scripts (setup only, not needed in repo)
+*.py
+*.sh
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
