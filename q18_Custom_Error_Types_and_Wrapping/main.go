@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+// TODO: define ValidationError with Code int, Field string, Message string
+// implement the error interface
 type ValidationError struct {
 	Code    int
 	Field   string
@@ -12,46 +14,37 @@ type ValidationError struct {
 }
 
 func (e *ValidationError) Error() string {
-	return fmt.Sprintf("validation error [%d] field=%s: %s", e.Code, e.Field, e.Message)
+	// TODO: return formatted string
+	return ""
 }
 
 var ErrNotFound = errors.New("not found")
 
+// TODO: validate returns *ValidationError if age < 0
 func validate(age int) error {
-	if age < 0 {
-		return &ValidationError{Code: 400, Field: "age", Message: "must be non-negative"}
-	}
+	// TODO: implement
 	return nil
 }
 
+// TODO: process wraps validate's error using fmt.Errorf("%w")
 func process(age int) error {
-	if err := validate(age); err != nil {
-		return fmt.Errorf("process failed: %w", err) // wrap with %w
-	}
+	// TODO: implement
 	return nil
 }
 
+// TODO: lookup wraps ErrNotFound if id == 0
 func lookup(id int) error {
-	if id == 0 {
-		return fmt.Errorf("lookup id=%d: %w", id, ErrNotFound)
-	}
+	// TODO: implement
 	return nil
 }
 
 func main() {
-	// Unwrap with errors.As
 	err := process(-5)
-	fmt.Println("error:", err)
+	fmt.Println(err) // Expected: process failed: validation error [400] field=age: must be non-negative
+
 	var ve *ValidationError
-	if errors.As(err, &ve) {
-		fmt.Printf("Code=%d Field=%s\n", ve.Code, ve.Field)
-	}
+	fmt.Println(errors.As(err, &ve), ve.Code) // Expected: true 400
 
-	// Unwrap with errors.Is
 	err2 := lookup(0)
-	fmt.Println("\nerror:", err2)
-	fmt.Println("errors.Is ErrNotFound:", errors.Is(err2, ErrNotFound))
-
-	// Unwrap chain
-	fmt.Println("Unwrapped:", errors.Unwrap(err2))
+	fmt.Println(errors.Is(err2, ErrNotFound)) // Expected: true
 }

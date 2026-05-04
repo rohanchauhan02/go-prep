@@ -6,43 +6,39 @@ import (
 	"time"
 )
 
+// TODO: UnixTime wraps time.Time but marshals as Unix timestamp (int64)
 type UnixTime struct{ time.Time }
 
+// TODO: MarshalJSON — if zero return "null", else marshal Unix seconds
 func (u UnixTime) MarshalJSON() ([]byte, error) {
-	if u.IsZero() { return []byte("null"), nil }
-	return json.Marshal(u.Unix())
+	// TODO: implement
+	return nil, nil
 }
 
+// TODO: UnmarshalJSON — if "null" set zero, else parse int64 as Unix seconds
 func (u *UnixTime) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" { u.Time = time.Time{}; return nil }
-	var ts int64
-	if err := json.Unmarshal(data, &ts); err != nil { return err }
-	u.Time = time.Unix(ts, 0).UTC()
+	// TODO: implement
 	return nil
 }
 
 type Event struct {
 	Name      string   `json:"name"`
 	CreatedAt UnixTime `json:"created_at"`
-	ExpiresAt UnixTime `json:"expires_at,omitempty"`
 }
 
 func main() {
-	now := UnixTime{time.Now().UTC()}
-	e := Event{Name: "launch", CreatedAt: now}
-
+	e := Event{Name: "launch", CreatedAt: UnixTime{time.Now().UTC()}}
 	b, _ := json.Marshal(e)
-	fmt.Println("Marshaled:", string(b))
+	fmt.Println("marshaled:", string(b))
+	// Expected: {"name":"launch","created_at":1234567890}
 
-	// Round-trip
 	var e2 Event
 	json.Unmarshal(b, &e2)
-	fmt.Println("Unmarshaled name:", e2.Name)
-	fmt.Println("Unmarshaled time:", e2.CreatedAt.Time)
+	fmt.Println("name:", e2.Name)
+	fmt.Println("time:", e2.CreatedAt.Time.UTC().Format(time.RFC3339))
+	// Expected: original time
 
 	// null handling
-	nullJSON := `{"name":"empty","created_at":null}`
-	var e3 Event
-	json.Unmarshal([]byte(nullJSON), &e3)
-	fmt.Println("Zero time?", e3.CreatedAt.IsZero())
+	json.Unmarshal([]byte(`{"name":"x","created_at":null}`), &e2)
+	fmt.Println("zero?", e2.CreatedAt.IsZero()) // Expected: true
 }

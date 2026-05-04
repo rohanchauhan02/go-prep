@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -9,61 +12,48 @@ import (
 
 type Middleware func(http.Handler) http.Handler
 
+// TODO: Chain applies middlewares right-to-left so they execute left-to-right
 func Chain(h http.Handler, mws ...Middleware) http.Handler {
-	for i := len(mws) - 1; i >= 0; i-- { h = mws[i](h) }
+	// TODO: iterate mws in reverse, wrap h
 	return h
 }
 
+// TODO: Logger middleware — print method, path, and duration after next
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		fmt.Printf("[Logger] %s %s %v\n", r.Method, r.URL.Path, time.Since(start))
+		fmt.Printf("[Log] %s %s %v
+", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
+// TODO: Auth middleware — check "Authorization: Bearer secret"
+// if missing/wrong → 401 Unauthorized, don't call next
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("Authorization")
-		if token != "Bearer secret" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		fmt.Println("[Auth] token valid")
-		next.ServeHTTP(w, r)
-	})
-}
-
-func RateLimit(next http.Handler) http.Handler {
-	// simplified: allow all in this demo
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("[RateLimit] allowed")
+		// TODO: implement
 		next.ServeHTTP(w, r)
 	})
 }
 
 func businessHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello from business handler")
+	fmt.Fprintln(w, "hello")
 }
 
 func main() {
-	handler := Chain(
-		http.HandlerFunc(businessHandler),
-		Logger,
-		RateLimit,
-		Auth,
-	)
+	handler := Chain(http.HandlerFunc(businessHandler), Logger, Auth)
 
-	// Test with valid token
-	req := httptest.NewRequest("GET", "/api/data", nil)
+	// Valid token
+	req := httptest.NewRequest("GET", "/api", nil)
 	req.Header.Set("Authorization", "Bearer secret")
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	fmt.Println("Status:", rr.Code, "Body:", rr.Body.String())
+	fmt.Println("status:", rr.Code) // Expected: 200
 
-	// Test without token
-	req2 := httptest.NewRequest("GET", "/api/data", nil)
+	// No token
+	req2 := httptest.NewRequest("GET", "/api", nil)
 	rr2 := httptest.NewRecorder()
 	handler.ServeHTTP(rr2, req2)
-	fmt.Println("Status:", rr2.Code)
+	fmt.Println("status:", rr2.Code) // Expected: 401
 }

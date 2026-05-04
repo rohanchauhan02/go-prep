@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -16,29 +19,24 @@ type TokenBucket struct {
 }
 
 func NewTokenBucket(capacity, rate float64) *TokenBucket {
-	return &TokenBucket{
-		tokens: capacity, capacity: capacity,
-		rate: rate, last: time.Now(),
-	}
+	return &TokenBucket{tokens: capacity, capacity: capacity, rate: rate, last: time.Now()}
 }
 
+// TODO: refill adds tokens based on time elapsed since last call
 func (tb *TokenBucket) refill() {
-	now := time.Now()
-	elapsed := now.Sub(tb.last).Seconds()
-	tb.tokens = min(tb.capacity, tb.tokens+elapsed*tb.rate)
-	tb.last = now
+	// TODO: elapsed := time.Since(tb.last).Seconds()
+	// TODO: tb.tokens = min(capacity, tokens + elapsed*rate)
+	// TODO: update tb.last
 }
 
+// TODO: Allow returns true and consumes 1 token if available
 func (tb *TokenBucket) Allow() bool {
 	tb.mu.Lock(); defer tb.mu.Unlock()
-	tb.refill()
-	if tb.tokens >= 1 {
-		tb.tokens--
-		return true
-	}
+	// TODO: refill, check tokens >= 1, decrement
 	return false
 }
 
+// TODO: Wait blocks until a token is available or ctx is cancelled
 func (tb *TokenBucket) Wait(ctx context.Context) error {
 	for {
 		if tb.Allow() { return nil }
@@ -49,33 +47,25 @@ func (tb *TokenBucket) Wait(ctx context.Context) error {
 	}
 }
 
-func min(a, b float64) float64 {
-	if a < b { return a }
-	return b
-}
-
 func main() {
-	rl := NewTokenBucket(5, 2) // 5 capacity, 2 tokens/sec
+	rl := NewTokenBucket(3, 1) // 3 capacity, 1 token/sec
 
-	fmt.Println("=== Token Bucket Rate Limiter ===")
-	allowed, denied := 0, 0
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		if rl.Allow() {
-			fmt.Printf("request %2d: ALLOWED\n", i+1)
-			allowed++
+			fmt.Printf("request %d: ALLOWED
+", i+1)
 		} else {
-			fmt.Printf("request %2d: DENIED\n", i+1)
-			denied++
+			fmt.Printf("request %d: DENIED
+", i+1)
 		}
 	}
-	fmt.Printf("Allowed: %d, Denied: %d\n", allowed, denied)
+	// Expected: first 3 ALLOWED, then DENIED
 
-	fmt.Println("\n--- Waiting for token ---")
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := rl.Wait(ctx); err != nil {
 		fmt.Println("Wait error:", err)
 	} else {
-		fmt.Println("Got token after waiting")
+		fmt.Println("Got token after wait")
 	}
 }

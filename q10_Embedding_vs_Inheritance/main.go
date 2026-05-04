@@ -1,30 +1,40 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import "fmt"
 
 type Animal struct{ Name string }
 
-func (a Animal) Speak() string    { return a.Name + " makes a sound" }
-func (a Animal) Describe() string { return "I am " + a.Name }
-
-type Dog struct {
-	Animal // embedded — promotes Speak() and Describe()
-	Breed  string
+// TODO: Animal.Speak returns "<Name> makes a sound"
+func (a Animal) Speak() string {
+	// TODO: implement
+	return ""
 }
 
-// Override promoted method
-func (d Dog) Speak() string { return d.Name + " says: Woof!" }
+type Dog struct {
+	Animal
+	Breed string
+}
+
+// TODO: Dog.Speak overrides Animal.Speak, returns "<Name> says: Woof!"
+func (d Dog) Speak() string {
+	// TODO: implement
+	return ""
+}
 
 type ServiceDog struct {
-	Dog  // double embedding
+	Dog
 	Role string
 }
 
+// TODO: ServiceDog.Describe returns "<Name> is a <Role> service dog"
 func (s ServiceDog) Describe() string {
-	return fmt.Sprintf("%s is a %s service dog", s.Name, s.Role)
+	// TODO: implement
+	return ""
 }
 
-// Interface satisfied by embedding
 type Speaker interface{ Speak() string }
 
 func makeSpeak(s Speaker) { fmt.Println(s.Speak()) }
@@ -34,12 +44,10 @@ func main() {
 	d := Dog{Animal: Animal{Name: "Rex"}, Breed: "Labrador"}
 	sd := ServiceDog{Dog: Dog{Animal: Animal{Name: "Buddy"}}, Role: "Guide"}
 
-	fmt.Println(a.Speak())
-	fmt.Println(d.Speak())        // overridden
-	fmt.Println(d.Describe())     // promoted from Animal
-	fmt.Println(sd.Speak())       // promoted from Dog
-	fmt.Println(sd.Describe())    // overridden
-
-	makeSpeak(d)  // Dog satisfies Speaker via Speak()
-	makeSpeak(sd) // ServiceDog promotes Dog.Speak()
+	fmt.Println(a.Speak())      // Expected: Cat makes a sound
+	fmt.Println(d.Speak())      // Expected: Rex says: Woof!
+	fmt.Println(d.Describe())   // Expected: I am Rex  (promoted from Animal)
+	fmt.Println(sd.Describe())  // Expected: Buddy is a Guide service dog
+	makeSpeak(d)                // Expected: Rex says: Woof!
+	makeSpeak(sd)               // Expected: Buddy says: Woof! (promoted)
 }

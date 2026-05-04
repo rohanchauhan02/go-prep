@@ -1,14 +1,15 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"unicode"
 )
 
-type Parser struct{ tokens []string; pos int }
-
+// Tokenizer: splits "3 + 5 * (2 - 1)" into ["3","+","5","*","(","2","-","1",")"]
 func tokenize(expr string) []string {
 	var tokens []string
 	i := 0
@@ -25,38 +26,30 @@ func tokenize(expr string) []string {
 	return tokens
 }
 
+type Parser struct{ tokens []string; pos int }
+
 func (p *Parser) peek() string {
 	if p.pos >= len(p.tokens) { return "" }
 	return p.tokens[p.pos]
 }
+func (p *Parser) consume() string { t := p.peek(); p.pos++; return t }
 
-func (p *Parser) consume() string {
-	t := p.peek(); p.pos++; return t
-}
-
+// TODO: parseExpr handles + and - (lowest precedence)
 // expr = term (('+' | '-') term)*
 func (p *Parser) parseExpr() int {
-	result := p.parseTerm()
-	for p.peek() == "+" || p.peek() == "-" {
-		op := p.consume()
-		right := p.parseTerm()
-		if op == "+" { result += right } else { result -= right }
-	}
-	return result
+	// TODO: implement
+	return 0
 }
 
+// TODO: parseTerm handles * and / (higher precedence)
 // term = factor (('*' | '/') factor)*
 func (p *Parser) parseTerm() int {
-	result := p.parseFactor()
-	for p.peek() == "*" || p.peek() == "/" {
-		op := p.consume()
-		right := p.parseFactor()
-		if op == "*" { result *= right } else { result /= right }
-	}
-	return result
+	// TODO: implement
+	return 0
 }
 
-// factor = number | '(' expr ')'
+// TODO: parseFactor handles numbers and parenthesized expressions
+// factor = NUMBER | '(' expr ')'
 func (p *Parser) parseFactor() int {
 	t := p.peek()
 	if t == "(" {
@@ -71,20 +64,23 @@ func (p *Parser) parseFactor() int {
 }
 
 func evaluate(expr string) int {
-	tokens := tokenize(expr)
-	p := &Parser{tokens: tokens}
+	p := &Parser{tokens: tokenize(expr)}
 	return p.parseExpr()
 }
 
 func main() {
-	exprs := []string{
-		"3 + 5",
-		"10 - 3 * 2",
-		"3 + 5 * (2 - 1)",
-		"(2 + 3) * (4 - 1)",
-		"100 / (2 + 3) * 2",
+	cases := []struct{ expr string; want int }{
+		{"3 + 5", 8},
+		{"10 - 3 * 2", 4},
+		{"3 + 5 * (2 - 1)", 8},
+		{"(2 + 3) * (4 - 1)", 15},
+		{"100 / (2 + 3) * 2", 40},
 	}
-	for _, e := range exprs {
-		fmt.Printf("%-30s = %d\n", strings.TrimSpace(e), evaluate(e))
+	for _, c := range cases {
+		got := evaluate(c.expr)
+		status := "✅"
+		if got != c.want { status = "❌" }
+		fmt.Printf("%s  %-30s = %d (want %d)
+", status, c.expr, got, c.want)
 	}
 }

@@ -19,29 +19,18 @@ func NewLRU(cap int) *LRUCache {
 	return &LRUCache{capacity: cap, list: list.New(), items: make(map[string]*list.Element)}
 }
 
+// TODO: Get returns value for key, moves it to front (most recently used)
+// returns ("", false) if key not found
 func (c *LRUCache) Get(key string) (string, bool) {
 	c.mu.Lock(); defer c.mu.Unlock()
-	if el, ok := c.items[key]; ok {
-		c.list.MoveToFront(el)
-		return el.Value.(*entry).value, true
-	}
+	// TODO: implement
 	return "", false
 }
 
+// TODO: Put inserts or updates key. If at capacity, evict LRU (list.Back())
 func (c *LRUCache) Put(key, value string) {
 	c.mu.Lock(); defer c.mu.Unlock()
-	if el, ok := c.items[key]; ok {
-		c.list.MoveToFront(el)
-		el.Value.(*entry).value = value
-		return
-	}
-	if c.list.Len() == c.capacity {
-		back := c.list.Back()
-		c.list.Remove(back)
-		delete(c.items, back.Value.(*entry).key)
-	}
-	el := c.list.PushFront(&entry{key, value})
-	c.items[key] = el
+	// TODO: implement
 }
 
 func main() {
@@ -50,31 +39,14 @@ func main() {
 	cache.Put("b", "2")
 	cache.Put("c", "3")
 
-	v, ok := cache.Get("a") // a is now most recent
-	fmt.Printf("Get a: %s %v\n", v, ok)
+	v, ok := cache.Get("a")
+	fmt.Println("get a:", v, ok)   // Expected: 1 true
 
-	cache.Put("d", "4") // evicts b (LRU)
+	cache.Put("d", "4")            // evicts b (LRU)
 
 	_, ok = cache.Get("b")
-	fmt.Printf("Get b (evicted): %v\n", ok)
-
-	v, _ = cache.Get("c")
-	fmt.Printf("Get c: %s\n", v)
+	fmt.Println("get b:", ok)      // Expected: false (evicted)
 
 	v, _ = cache.Get("d")
-	fmt.Printf("Get d: %s\n", v)
-
-	// Concurrent test
-	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			k := fmt.Sprintf("k%d", i%5)
-			cache.Put(k, fmt.Sprintf("v%d", i))
-			cache.Get(k)
-		}(i)
-	}
-	wg.Wait()
-	fmt.Println("Concurrent access done safely")
+	fmt.Println("get d:", v)       // Expected: 4
 }

@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -5,35 +8,39 @@ import (
 	"unicode/utf8"
 )
 
+// TODO: reverse a UTF-8 string correctly (by runes, not bytes)
 func reverseString(s string) string {
-	runes := []rune(s)
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
-	}
-	return string(runes)
+	// TODO: convert to []rune, reverse, convert back
+	return ""
+}
+
+// TODO: count bytes vs runes — they differ for multi-byte chars
+func bytesVsRunes(s string) (bytes, runes int) {
+	// TODO: use len(s) for bytes, utf8.RuneCountInString for runes
+	return
 }
 
 func main() {
 	s := "Hello, 世界"
-	fmt.Println("String     :", s)
-	fmt.Println("Bytes      :", len(s))
-	fmt.Println("Runes      :", utf8.RuneCountInString(s))
 
-	fmt.Println("\n--- Byte indexing (raw bytes) ---")
-	for i := 0; i < len(s); i++ {
-		fmt.Printf("s[%d] = 0x%x\n", i, s[i])
+	b, r := bytesVsRunes(s)
+	fmt.Printf("bytes=%d runes=%d
+", b, r)
+	// Expected: bytes=13 runes=9
+
+	fmt.Println("reversed:", reverseString(s))
+	// Expected: 界世 ,olleH
+
+	// Range over string gives runes
+	fmt.Println("
+Range (rune indices):")
+	for idx, ch := range s {
+		fmt.Printf("  [%d] %c
+", idx, ch)
 	}
+	// Note: indices jump by byte size (世 = 3 bytes)
 
-	fmt.Println("\n--- Range over string (runes) ---")
-	for idx, r := range s {
-		fmt.Printf("index=%d rune=%c (%U)\n", idx, r, r)
-	}
-
-	fmt.Println("\n--- Reverse UTF-8 string ---")
-	fmt.Println("Original :", s)
-	fmt.Println("Reversed :", reverseString(s))
-
-	// Byte vs rune count difference
-	emoji := "A😀B"
-	fmt.Printf("\n'%s': bytes=%d runes=%d\n", emoji, len(emoji), utf8.RuneCountInString(emoji))
+	fmt.Println("
+utf8 package:")
+	fmt.Println("RuneCount:", utf8.RuneCountInString(s))
 }

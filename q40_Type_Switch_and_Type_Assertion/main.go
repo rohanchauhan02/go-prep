@@ -2,52 +2,45 @@ package main
 
 import "fmt"
 
+// TODO: describe uses type switch to handle multiple types
+// int → "int: N (doubled=2N)"
+// float64 → "float64: N"
+// string → "string: "s" (len=N)"
+// []int → "slice: len=N sum=S"
+// nil → "nil"
+// default → "unknown: <type>"
 func describe(i interface{}) string {
 	switch v := i.(type) {
-	case int:
-		return fmt.Sprintf("int: %d (doubled=%d)", v, v*2)
-	case float64:
-		return fmt.Sprintf("float64: %.2f", v)
-	case string:
-		return fmt.Sprintf("string: %q (len=%d)", v, len(v))
-	case []int:
-		sum := 0; for _, x := range v { sum += x }
-		return fmt.Sprintf("[]int: len=%d sum=%d", len(v), sum)
-	case map[string]int:
-		return fmt.Sprintf("map[string]int: len=%d", len(v))
-	case bool:
-		return fmt.Sprintf("bool: %v", v)
-	case nil:
-		return "nil"
+	// TODO: add all cases
 	default:
-		return fmt.Sprintf("unknown type: %T", v)
+		return fmt.Sprintf("unknown: %T", v)
 	}
 }
 
-func typeAssertionDemo() {
+func typeAssertDemo() {
 	var i interface{} = "hello"
 
-	// Safe assertion (comma-ok idiom)
+	// Safe (comma-ok)
 	s, ok := i.(string)
-	fmt.Printf(".(string): %q ok=%v\n", s, ok)
+	fmt.Println("string:", s, ok) // Expected: hello true
 
 	n, ok := i.(int)
-	fmt.Printf(".(int):    %d  ok=%v\n", n, ok)
+	fmt.Println("int:", n, ok)    // Expected: 0 false
 
-	// Unsafe assertion — panics if wrong type
+	// Unsafe — catches panic with recover
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered panic:", r)
+			fmt.Println("panic caught:", r)
 		}
 	}()
-	_ = i.(int) // panics: interface holds string not int
+	_ = i.(int) // Expected: panic caught: interface conversion: ...
 }
 
 func main() {
-	values := []interface{}{42, 3.14, "go", []int{1, 2, 3}, map[string]int{"a": 1}, true, nil}
-	for _, v := range values {
+	vals := []interface{}{42, 3.14, "go", []int{1,2,3}, nil, true}
+	for _, v := range vals {
 		fmt.Println(describe(v))
 	}
 	fmt.Println()
-	typeAssertionDemo()
+	typeAssertDemo()
 }

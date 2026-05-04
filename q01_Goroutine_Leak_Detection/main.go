@@ -7,37 +7,27 @@ import (
 	"time"
 )
 
-// LEAKED version - goroutine blocks forever on channel with no sender
+// TODO: leakedWorker blocks forever on ch — goroutine leak
 func leakedWorker(ch <-chan int) {
-	val := <-ch // blocks forever → leak
-	fmt.Println("got", val)
+	// TODO: receive from ch (blocks forever → leak)
 }
 
-// FIXED version - respects context cancellation
+// TODO: fixedWorker must exit when ctx is cancelled
 func fixedWorker(ctx context.Context, ch <-chan int) {
-	select {
-	case val := <-ch:
-		fmt.Println("got", val)
-	case <-ctx.Done():
-		fmt.Println("worker cancelled:", ctx.Err())
-	}
+	// TODO: use select with ctx.Done() and ch
 }
 
 func main() {
-	fmt.Println("=== Goroutine Leak Demo ===")
-	before := runtime.NumGoroutine()
-	fmt.Println("goroutines before:", before)
+	fmt.Println("goroutines before:", runtime.NumGoroutine()) // expected: 1
 
-	// Create leak
 	ch := make(chan int)
 	go leakedWorker(ch)
 	time.Sleep(50 * time.Millisecond)
-	fmt.Println("goroutines after leak:", runtime.NumGoroutine()) // +1
+	fmt.Println("goroutines after leak:", runtime.NumGoroutine()) // expected: 2
 
-	// Fix with context
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	go fixedWorker(ctx, make(chan int))
 	time.Sleep(200 * time.Millisecond)
-	fmt.Println("goroutines after fix:", runtime.NumGoroutine()) // back to normal
+	fmt.Println("goroutines after fix:", runtime.NumGoroutine()) // expected: 2 (leak remains) fixed=1
 }

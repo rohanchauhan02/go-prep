@@ -12,13 +12,15 @@ type TreeNode struct {
 	Right *TreeNode
 }
 
-func newNode(v int) *TreeNode { return &TreeNode{Val: v} }
-
+// TODO: serialize tree to string using preorder traversal
+// null nodes → "#", separator → ","
+// e.g. tree [1,2,3] → "1,2,#,#,3,#,#"
 func serialize(root *TreeNode) string {
-	if root == nil { return "#" }
-	return fmt.Sprintf("%d,%s,%s", root.Val, serialize(root.Left), serialize(root.Right))
+	// TODO: implement
+	return ""
 }
 
+// TODO: deserialize string back to tree
 func deserialize(data string) *TreeNode {
 	parts := strings.Split(data, ",")
 	idx := 0
@@ -26,47 +28,31 @@ func deserialize(data string) *TreeNode {
 	build = func() *TreeNode {
 		if idx >= len(parts) || parts[idx] == "#" { idx++; return nil }
 		v, _ := strconv.Atoi(parts[idx]); idx++
-		return &TreeNode{Val: v, Left: build(), Right: build()}
+		// TODO: build left and right children
+		return &TreeNode{Val: v}
 	}
 	return build()
 }
 
+// TODO: levelOrder returns nodes level by level as [][]int (BFS)
 func levelOrder(root *TreeNode) [][]int {
-	if root == nil { return nil }
-	var result [][]int
-	queue := []*TreeNode{root}
-	for len(queue) > 0 {
-		size := len(queue)
-		var level []int
-		for i := 0; i < size; i++ {
-			node := queue[0]; queue = queue[1:]
-			level = append(level, node.Val)
-			if node.Left != nil { queue = append(queue, node.Left) }
-			if node.Right != nil { queue = append(queue, node.Right) }
-		}
-		result = append(result, level)
-	}
-	return result
+	// TODO: implement using queue
+	return nil
 }
 
 func main() {
-	//       1
-	//      / 	//     2   3
-	//    / \   	//   4   5   6
-	root := newNode(1)
-	root.Left = newNode(2); root.Right = newNode(3)
-	root.Left.Left = newNode(4); root.Left.Right = newNode(5)
-	root.Right.Right = newNode(6)
+	root := &TreeNode{Val: 1,
+		Left:  &TreeNode{Val: 2, Left: &TreeNode{Val: 4}, Right: &TreeNode{Val: 5}},
+		Right: &TreeNode{Val: 3, Right: &TreeNode{Val: 6}},
+	}
 
-	serialized := serialize(root)
-	fmt.Println("Serialized:", serialized)
+	s := serialize(root)
+	fmt.Println("serialized:", s)
 
-	deserialized := deserialize(serialized)
-	fmt.Println("Re-serialized:", serialize(deserialized))
+	r2 := deserialize(s)
+	fmt.Println("re-serialized:", serialize(r2))
+	// Expected: same string as original
 
-	fmt.Println("Level order:", levelOrder(root))
-
-	// Edge cases
-	fmt.Println("Empty tree:", serialize(nil))
-	fmt.Println("Single node:", serialize(newNode(42)))
+	fmt.Println("level order:", levelOrder(root))
+	// Expected: [[1] [2 3] [4 5 6]]
 }

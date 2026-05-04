@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 )
@@ -16,40 +15,37 @@ const (
 
 type Handler func(ctx context.Context) error
 
+// TODO: AuthMiddleware reads UserIDKey from ctx
+// if missing → return error "unauthorized"
 func AuthMiddleware(next Handler) Handler {
 	return func(ctx context.Context) error {
-		userID := ctx.Value(UserIDKey)
-		if userID == nil {
-			return errors.New("unauthorized: no userID in context")
-		}
-		fmt.Printf("[Auth] user=%v\n", userID)
+		// TODO: check ctx.Value(UserIDKey) != nil
 		return next(ctx)
 	}
 }
 
+// TODO: LogMiddleware prints [Log] requestID=<id> before and after next
 func LogMiddleware(next Handler) Handler {
 	return func(ctx context.Context) error {
-		reqID := ctx.Value(RequestIDKey)
-		fmt.Printf("[Log] requestID=%v start\n", reqID)
-		err := next(ctx)
-		fmt.Printf("[Log] requestID=%v done err=%v\n", reqID, err)
-		return err
+		// TODO: log start, call next, log done
+		return next(ctx)
 	}
 }
 
+// TODO: BusinessHandler sleeps 100ms respecting ctx cancellation
 func BusinessHandler(ctx context.Context) error {
 	select {
 	case <-time.After(100 * time.Millisecond):
-		fmt.Println("[Handler] processed request")
+		fmt.Println("[Handler] done")
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		// TODO: return ctx.Err()
+		return nil
 	}
 }
 
 func main() {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, UserIDKey, "user-42")
+	ctx := context.WithValue(context.Background(), UserIDKey, "user-42")
 	ctx = context.WithValue(ctx, RequestIDKey, "req-abc")
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
@@ -58,10 +54,10 @@ func main() {
 	if err := chain(ctx); err != nil {
 		fmt.Println("Error:", err)
 	}
+	// Expected: [Log] start, [Auth] OK, [Handler] done, [Log] done
 
-	fmt.Println("\n--- Missing auth scenario ---")
-	noAuth := context.Background()
-	if err := chain(noAuth); err != nil {
-		fmt.Println("Error:", err)
+	fmt.Println("--- no auth ---")
+	if err := chain(context.Background()); err != nil {
+		fmt.Println("Error:", err) // Expected: Error: unauthorized
 	}
 }

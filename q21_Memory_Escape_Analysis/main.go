@@ -2,48 +2,30 @@ package main
 
 import "fmt"
 
-// Stays on stack — small value, doesn't escape
+// TODO: stackAlloc — return int by value (stays on stack)
 func stackAlloc() int {
-	x := 42 // stays on stack
-	return x
+	x := 42
+	return x // x stays on stack
 }
 
-// Escapes to heap — pointer returned, value outlives function
+// TODO: heapAlloc — return pointer (x escapes to heap)
 func heapAlloc() *int {
 	x := 42
-	return &x // x escapes to heap
+	return &x // TODO: why does x escape?
 }
 
-// Interface boxing causes escape
+// TODO: interfaceEscape — boxing into interface causes escape
 func interfaceEscape() interface{} {
 	x := 42
-	return x // x escapes: stored in interface
-}
-
-// Large array may escape
-func largeArray() [1024]int {
-	var arr [1024]int
-	for i := range arr { arr[i] = i }
-	return arr // returned by value — may or may not escape
-}
-
-// Goroutine closure causes escape
-func goroutineEscape() {
-	x := 42
-	go func() { fmt.Println(x) }() // x escapes — captured by goroutine
+	return x // TODO: why does x escape here?
 }
 
 func main() {
-	fmt.Println("stack alloc result:", stackAlloc())
-	fmt.Println("heap alloc result:", *heapAlloc())
-	fmt.Println("interface escape:", interfaceEscape())
+	fmt.Println(stackAlloc())      // 42
+	fmt.Println(*heapAlloc())      // 42
+	fmt.Println(interfaceEscape()) // 42
 
-	arr := largeArray()
-	fmt.Println("large array[0]:", arr[0])
-
-	goroutineEscape()
-
-	// Run: go build -gcflags='-m' main.go
-	// to see escape analysis output from the compiler
-	fmt.Println("\nRun: go build -gcflags='-m -m' main.go to see escape analysis")
+	// Run to see escape decisions:
+	// go build -gcflags="-m -m" main.go
+	// Look for: "x escapes to heap" vs "x does not escape"
 }

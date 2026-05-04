@@ -2,74 +2,65 @@ package main
 
 import "fmt"
 
-// Generic Stack
+// TODO: generic Stack[T any] with Push, Pop (T, bool), Peek (T, bool), IsEmpty
 type Stack[T any] struct {
 	items []T
 }
 
-func (s *Stack[T]) Push(v T)       { s.items = append(s.items, v) }
-func (s *Stack[T]) IsEmpty() bool  { return len(s.items) == 0 }
+func (s *Stack[T]) Push(v T) {
+	// TODO: append v
+}
+
+func (s *Stack[T]) IsEmpty() bool {
+	// TODO: return len == 0
+	return true
+}
+
 func (s *Stack[T]) Peek() (T, bool) {
 	var zero T
-	if s.IsEmpty() { return zero, false }
-	return s.items[len(s.items)-1], true
+	// TODO: return last item or (zero, false)
+	return zero, false
 }
+
 func (s *Stack[T]) Pop() (T, bool) {
-	v, ok := s.Peek()
-	if ok { s.items = s.items[:len(s.items)-1] }
-	return v, ok
+	// TODO: peek then shrink slice
+	var zero T
+	return zero, false
 }
 
-// Generic Map (functional transform)
+// TODO: Map transforms []T → []U using fn
 func Map[T, U any](slice []T, fn func(T) U) []U {
-	result := make([]U, len(slice))
-	for i, v := range slice { result[i] = fn(v) }
-	return result
+	// TODO: implement
+	return nil
 }
 
-// Generic Filter
+// TODO: Filter returns elements where fn returns true
 func Filter[T any](slice []T, fn func(T) bool) []T {
-	var result []T
-	for _, v := range slice { if fn(v) { result = append(result, v) } }
-	return result
+	// TODO: implement
+	return nil
 }
 
-// Constraint with ~
+// TODO: Number constraint — Sum works for int and float64
 type Number interface{ ~int | ~float64 }
 
 func Sum[T Number](nums []T) T {
 	var total T
-	for _, n := range nums { total += n }
+	// TODO: sum all
 	return total
 }
 
 func main() {
-	// Stack[int]
 	s := &Stack[int]{}
 	s.Push(1); s.Push(2); s.Push(3)
+
 	v, _ := s.Pop()
-	fmt.Println("Stack Pop:", v)
+	fmt.Println("Pop:", v)   // Expected: 3
+
 	top, _ := s.Peek()
-	fmt.Println("Stack Peek:", top)
+	fmt.Println("Peek:", top) // Expected: 2
 
-	// Stack[string]
-	ss := &Stack[string]{}
-	ss.Push("go"); ss.Push("generics")
-	fmt.Println("String stack pop:", func() string { v, _ := ss.Pop(); return v }())
-
-	// Map
 	nums := []int{1, 2, 3, 4, 5}
-	doubled := Map(nums, func(n int) int { return n * 2 })
-	fmt.Println("Map doubled:", doubled)
-
-	strs := Map(nums, func(n int) string { return fmt.Sprintf("item%d", n) })
-	fmt.Println("Map to string:", strs)
-
-	// Filter
-	evens := Filter(nums, func(n int) bool { return n%2 == 0 })
-	fmt.Println("Filter evens:", evens)
-
-	// Sum with constraint
-	fmt.Println("Sum ints:", Sum(nums))
-	fmt.Println("Sum floats:", Sum([]float64{1.1, 2.2, 3.3}))
+	fmt.Println("Map x2:", Map(nums, func(n int) int { return n * 2 })) // [2 4 6 8 10]
+	fmt.Println("Filter even:", Filter(nums, func(n int) bool { return n%2 == 0 })) // [2 4]
+	fmt.Println("Sum:", Sum(nums)) // 15
 }

@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -7,26 +10,23 @@ import (
 	"time"
 )
 
+// TODO: producer sends 1..10 to output channel, respects ctx
 func producer(ctx context.Context) <-chan int {
 	out := make(chan int)
 	go func() {
 		defer close(out)
-		for i := 1; i <= 10; i++ {
-			select {
-			case out <- i:
-			case <-ctx.Done(): return
-			}
-		}
+		// TODO: send 1..10, select on ctx.Done()
 	}()
 	return out
 }
 
+// TODO: worker reads from in, sends "worker-<id> processed <v>" strings to output
 func worker(ctx context.Context, id int, in <-chan int) <-chan string {
 	out := make(chan string)
 	go func() {
 		defer close(out)
 		for v := range in {
-			time.Sleep(20 * time.Millisecond) // simulate work
+			time.Sleep(20 * time.Millisecond)
 			select {
 			case out <- fmt.Sprintf("worker-%d processed %d", id, v):
 			case <-ctx.Done(): return
@@ -36,21 +36,18 @@ func worker(ctx context.Context, id int, in <-chan int) <-chan string {
 	return out
 }
 
+// TODO: merge fans-in multiple channels into one
 func merge(ctx context.Context, channels ...<-chan string) <-chan string {
-	var wg sync.WaitGroup
 	merged := make(chan string, len(channels))
-
-	fanIn := func(ch <-chan string) {
-		defer wg.Done()
-		for v := range ch {
-			select {
-			case merged <- v:
-			case <-ctx.Done(): return
-			}
-		}
+	var wg sync.WaitGroup
+	for _, ch := range channels {
+		wg.Add(1)
+		ch := ch
+		go func() {
+			defer wg.Done()
+			// TODO: forward all values from ch to merged
+		}()
 	}
-	wg.Add(len(channels))
-	for _, ch := range channels { go fanIn(ch) }
 	go func() { wg.Wait(); close(merged) }()
 	return merged
 }
@@ -60,13 +57,16 @@ func main() {
 	defer cancel()
 
 	src := producer(ctx)
-	// Fan-out to 3 workers (all read same channel — work is distributed)
+
+	// Fan-out to 3 workers
 	var workerChans []<-chan string
 	for i := 1; i <= 3; i++ {
 		workerChans = append(workerChans, worker(ctx, i, src))
 	}
-	// Fan-in results
+
+	// Fan-in
 	for result := range merge(ctx, workerChans...) {
 		fmt.Println(result)
 	}
+	// Expected: 10 lines like "worker-X processed Y"
 }

@@ -12,33 +12,25 @@ import (
 
 var urls = []string{"url1", "url2", "url3", "url4", "url5"}
 
+// TODO: fetch each url concurrently using sync.WaitGroup
+// Print "fetched: <url>" for each, wait for all to finish
 func fetchWaitGroup() {
 	var wg sync.WaitGroup
-	for _, u := range urls {
-		wg.Add(1)
-		go func(url string) {
-			defer wg.Done()
-			time.Sleep(50 * time.Millisecond)
-			fmt.Println("WaitGroup fetched:", url)
-		}(u)
-	}
+	// TODO: implement
 	wg.Wait()
 }
 
+// TODO: fetch using errgroup — stop all on first error
+// url3 should return an error
 func fetchErrGroup() error {
 	g, ctx := errgroup.WithContext(context.Background())
+	_ = ctx
 	for _, u := range urls {
 		u := u
 		g.Go(func() error {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(50 * time.Millisecond):
-			}
-			if u == "url3" {
-				return errors.New("url3 failed")
-			}
-			fmt.Println("ErrGroup fetched:", u)
+			time.Sleep(50 * time.Millisecond)
+			// TODO: return error if u == "url3"
+			fmt.Println("fetched:", u)
 			return nil
 		})
 	}
@@ -46,11 +38,12 @@ func fetchErrGroup() error {
 }
 
 func main() {
-	fmt.Println("=== sync.WaitGroup ===")
+	fmt.Println("=== WaitGroup ===")
 	fetchWaitGroup()
 
-	fmt.Println("\n=== errgroup (stops on first error) ===")
+	fmt.Println("=== ErrGroup ===")
 	if err := fetchErrGroup(); err != nil {
-		fmt.Println("ErrGroup stopped with error:", err)
+		fmt.Println("stopped:", err) // Expected: stopped: url3 failed
 	}
+	_ = errors.New // hint
 }

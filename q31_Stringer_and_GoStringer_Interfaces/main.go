@@ -1,29 +1,34 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import "fmt"
 
 type Color struct{ R, G, B, A uint8 }
 
-// fmt.Stringer — used by %v, %s
+// TODO: implement fmt.Stringer — used by %v and %s
+// format: "rgba(R,G,B,A)"
 func (c Color) String() string {
-	return fmt.Sprintf("rgba(%d,%d,%d,%d)", c.R, c.G, c.B, c.A)
+	// TODO: implement
+	return ""
 }
 
-// fmt.GoStringer — used by %#v
+// TODO: implement fmt.GoStringer — used by %#v
+// format: "Color{R:R, G:G, B:B, A:A}"
 func (c Color) GoString() string {
-	return fmt.Sprintf("Color{R:%d, G:%d, B:%d, A:%d}", c.R, c.G, c.B, c.A)
+	// TODO: implement
+	return ""
 }
 
 func main() {
 	red := Color{255, 0, 0, 255}
-
-	fmt.Printf("%%v  → %v\n", red)   // calls String()
-	fmt.Printf("%%s  → %s\n", red)   // calls String()
-	fmt.Printf("%%+v → %+v\n", red)  // struct fields (ignores Stringer)
-	fmt.Printf("%%#v → %#v\n", red)  // calls GoString()
-	fmt.Printf("%%T  → %T\n", red)   // type only
-
-	// In a collection
-	palette := []Color{{255, 0, 0, 255}, {0, 255, 0, 255}, {0, 0, 255, 255}}
-	fmt.Println("\nPalette:", palette)
+	fmt.Printf("%%v  → %v
+", red)   // Expected: rgba(255,0,0,255)
+	fmt.Printf("%%s  → %s
+", red)   // Expected: rgba(255,0,0,255)
+	fmt.Printf("%%+v → %+v
+", red)  // Expected: {R:255 G:0 B:0 A:255}  (struct fields)
+	fmt.Printf("%%#v → %#v
+", red)  // Expected: Color{R:255, G:0, B:0, A:255}
 }

@@ -5,54 +5,61 @@ import (
 	"sync"
 )
 
+// TODO: buggyClosures returns 5 funcs — all print the same wrong value (5)
+// because they all capture the same loop variable i
 func buggyClosures() []func() {
 	funcs := make([]func(), 5)
 	for i := 0; i < 5; i++ {
-		funcs[i] = func() { fmt.Print(i, " ") } // captures &i — all print 5
+		funcs[i] = func() { fmt.Print(i, " ") } // BUG: captures &i
 	}
 	return funcs
 }
 
-func fixedByArg() []func() {
+// TODO: fix by shadowing i inside the loop with i := i
+func fixedByShadow() []func() {
 	funcs := make([]func(), 5)
 	for i := 0; i < 5; i++ {
-		i := i // new variable per iteration
+		// TODO: shadow i so each closure captures its own copy
 		funcs[i] = func() { fmt.Print(i, " ") }
 	}
 	return funcs
 }
 
+// TODO: fix by passing i as a function argument
 func fixedByParam() []func() {
 	funcs := make([]func(), 5)
 	for i := 0; i < 5; i++ {
-		funcs[i] = func(n int) func() {
-			return func() { fmt.Print(n, " ") }
-		}(i)
+		// TODO: wrap in an immediately-invoked func that takes i as param
+		funcs[i] = func() { fmt.Print(i, " ") }
 	}
 	return funcs
 }
 
-func goroutineBug() {
+// TODO: goroutines — fix the same bug with i := i before go func()
+func fixedGoroutines() {
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		i := i // fix: shadow i
+		// TODO: fix closure capture before go func()
 		go func() { defer wg.Done(); fmt.Print(i, " ") }()
 	}
 	wg.Wait()
 }
 
 func main() {
-	fmt.Println("=== Buggy (all print 5) ===")
-	for _, f := range buggyClosures() { f() }
+	fmt.Println("Buggy (all 5):")
+	for _, f := range buggyClosures() { f() } // Expected: 5 5 5 5 5
+	fmt.Println()
 
-	fmt.Println("\n=== Fixed by shadowing ===")
-	for _, f := range fixedByArg() { f() }
+	fmt.Println("Fixed shadow:")
+	for _, f := range fixedByShadow() { f() } // Expected: 0 1 2 3 4
+	fmt.Println()
 
-	fmt.Println("\n=== Fixed by parameter ===")
-	for _, f := range fixedByParam() { f() }
+	fmt.Println("Fixed param:")
+	for _, f := range fixedByParam() { f() }  // Expected: 0 1 2 3 4
+	fmt.Println()
 
-	fmt.Println("\n=== Goroutine fix ===")
-	goroutineBug()
+	fmt.Println("Fixed goroutines:")
+	fixedGoroutines()                          // Expected: 0 1 2 3 4 (any order)
 	fmt.Println()
 }

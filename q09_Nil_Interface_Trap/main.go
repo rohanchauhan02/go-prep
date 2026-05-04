@@ -6,33 +6,31 @@ type MyError struct{ msg string }
 
 func (e *MyError) Error() string { return e.msg }
 
-// BUG: returns typed nil — interface is NOT nil!
+// TODO: this function has the nil interface trap bug
+// When fail=false, it returns a typed nil — fix it
 func getBuggyError(fail bool) error {
-	var err *MyError // typed nil pointer
+	var err *MyError
 	if fail {
 		err = &MyError{"something went wrong"}
 	}
-	return err // wraps (*MyError)(nil) — non-nil interface!
+	return err // BUG: typed nil — interface is NOT nil!
 }
 
-// FIX: return untyped nil directly
+// TODO: fix the bug — when fail=false return untyped nil
 func getFixedError(fail bool) error {
-	if fail {
-		return &MyError{"something went wrong"}
-	}
-	return nil // untyped nil — interface IS nil
+	// TODO: implement correctly
+	return nil
 }
 
 func main() {
-	// Buggy
+	// Bug demonstration
 	err := getBuggyError(false)
-	fmt.Println("Buggy — err == nil?", err == nil) // false! (trap)
-	fmt.Printf("Buggy — type: %T value: %v\n", err, err)
+	fmt.Println("buggy err == nil?", err == nil) // Expected: false (trap!)
 
 	// Fixed
 	err2 := getFixedError(false)
-	fmt.Println("Fixed — err == nil?", err2 == nil) // true
+	fmt.Println("fixed err == nil?", err2 == nil) // Expected: true
 
 	err3 := getFixedError(true)
-	fmt.Println("Fixed — error:", err3)
+	fmt.Println("fixed with error:", err3) // Expected: something went wrong
 }

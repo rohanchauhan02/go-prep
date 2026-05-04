@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import "fmt"
@@ -5,78 +8,53 @@ import "fmt"
 type Graph struct{ adj map[int][]int }
 
 func NewGraph() *Graph { return &Graph{adj: make(map[int][]int)} }
+
 func (g *Graph) AddEdge(u, v int) { g.adj[u] = append(g.adj[u], v) }
 
+// TODO: BFS from start — return nodes in visited order
 func (g *Graph) BFS(start int) []int {
-	visited := make(map[int]bool)
-	queue := []int{start}
-	visited[start] = true
-	var order []int
-	for len(queue) > 0 {
-		node := queue[0]; queue = queue[1:]
-		order = append(order, node)
-		for _, nb := range g.adj[node] {
-			if !visited[nb] { visited[nb] = true; queue = append(queue, nb) }
-		}
-	}
-	return order
+	// TODO: use queue (slice), visited map
+	return nil
 }
 
-func (g *Graph) DFSIterative(start int) []int {
-	visited := make(map[int]bool)
-	stack := []int{start}
-	var order []int
-	for len(stack) > 0 {
-		node := stack[len(stack)-1]; stack = stack[:len(stack)-1]
-		if visited[node] { continue }
-		visited[node] = true; order = append(order, node)
-		for _, nb := range g.adj[node] { if !visited[nb] { stack = append(stack, nb) } }
-	}
-	return order
+// TODO: DFS iterative from start — return nodes in visited order
+func (g *Graph) DFS(start int) []int {
+	// TODO: use stack (slice), visited map
+	return nil
 }
 
-func (g *Graph) hasCycleUtil(node int, visited, recStack map[int]bool) bool {
-	visited[node] = true; recStack[node] = true
-	for _, nb := range g.adj[node] {
-		if !visited[nb] && g.hasCycleUtil(nb, visited, recStack) { return true }
-		if recStack[nb] { return true }
-	}
-	recStack[node] = false; return false
-}
-
+// TODO: HasCycle — detect cycle in directed graph using DFS + recursion stack
 func (g *Graph) HasCycle() bool {
-	visited, recStack := make(map[int]bool), make(map[int]bool)
+	visited := make(map[int]bool)
+	recStack := make(map[int]bool)
+	var dfs func(node int) bool
+	dfs = func(node int) bool {
+		// TODO: implement
+		return false
+	}
 	for node := range g.adj {
-		if !visited[node] && g.hasCycleUtil(node, visited, recStack) { return true }
+		if !visited[node] && dfs(node) { return true }
 	}
 	return false
 }
 
+// TODO: TopologicalSort using Kahn's algorithm (BFS with in-degree)
 func (g *Graph) TopologicalSort() []int {
-	inDegree := make(map[int]int)
-	for u := range g.adj { for _, v := range g.adj[u] { inDegree[v]++ } }
-	queue := []int{}
-	for node := range g.adj { if inDegree[node] == 0 { queue = append(queue, node) } }
-	var order []int
-	for len(queue) > 0 {
-		node := queue[0]; queue = queue[1:]; order = append(order, node)
-		for _, nb := range g.adj[node] {
-			inDegree[nb]--
-			if inDegree[nb] == 0 { queue = append(queue, nb) }
-		}
-	}
-	return order
+	// TODO: compute in-degrees, process nodes with 0 in-degree
+	return nil
 }
 
 func main() {
 	g := NewGraph()
-	for _, e := range [][2]int{{1,2},{1,3},{2,4},{3,4},{4,5}} { g.AddEdge(e[0], e[1]) }
-	fmt.Println("BFS from 1:", g.BFS(1))
-	fmt.Println("DFS from 1:", g.DFSIterative(1))
-	fmt.Println("Has cycle: ", g.HasCycle())
-	fmt.Println("Topo sort :", g.TopologicalSort())
+	for _, e := range [][2]int{{1,2},{1,3},{2,4},{3,4},{4,5}} {
+		g.AddEdge(e[0], e[1])
+	}
+	fmt.Println("BFS:", g.BFS(1))           // Expected: [1 2 3 4 5]
+	fmt.Println("DFS:", g.DFS(1))           // Expected: [1 3 4 5 2] (stack order)
+	fmt.Println("Cycle:", g.HasCycle())     // Expected: false
+	fmt.Println("Topo:", g.TopologicalSort()) // Expected: [1 2 3 4 5] or valid topo order
 
 	cyclic := NewGraph()
-	cyclic.AddEdge(1,2); cyclic.AddEdge(2,3); cyclic.AddEdge(3,1)
-	fmt.Println("\nCyclic graph has cycle:", cyclic.HasCycle())
+	cyclic.AddEdge(1, 2); cyclic.AddEdge(2, 3); cyclic.AddEdge(3, 1)
+	fmt.Println("Cyclic:", cyclic.HasCycle()) // Expected: true
 }

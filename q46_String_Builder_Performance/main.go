@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -9,61 +12,57 @@ import (
 
 const n = 10000
 
-func bench(name string, fn func()) time.Duration {
-	start := time.Now(); fn(); return time.Since(start)
-}
-
+// TODO: concatenate "a" n times using + operator (slowest)
 func concatPlus() string {
 	s := ""
-	for i := 0; i < n; i++ { s += "a" }
+	for i := 0; i < n; i++ {
+		// TODO: s += "a"
+	}
 	return s
 }
 
-func concatSprintf() string {
-	s := ""
-	for i := 0; i < n; i++ { s = fmt.Sprintf("%sa", s) }
-	return s
-}
-
+// TODO: use bytes.Buffer
 func concatBuffer() string {
 	var buf bytes.Buffer
-	for i := 0; i < n; i++ { buf.WriteByte('a') }
+	for i := 0; i < n; i++ {
+		// TODO: buf.WriteByte('a')
+	}
 	return buf.String()
 }
 
+// TODO: use strings.Builder with Grow pre-allocation (fastest)
 func concatBuilder() string {
 	var sb strings.Builder
-	sb.Grow(n) // pre-allocate
-	for i := 0; i < n; i++ { sb.WriteByte('a') }
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		// TODO: sb.WriteByte('a')
+	}
 	return sb.String()
 }
 
-// CSV serializer using Builder
+// TODO: CSV serializer — join rows with commas, rows with newlines
 func toCSV(rows [][]string) string {
 	var sb strings.Builder
-	for i, row := range rows {
-		for j, cell := range row {
-			if j > 0 { sb.WriteByte(',') }
-			sb.WriteString(cell)
-		}
-		if i < len(rows)-1 { sb.WriteByte('
-') }
-	}
+	// TODO: implement
 	return sb.String()
+}
+
+func bench(name string, fn func() string) {
+	start := time.Now()
+	s := fn()
+	fmt.Printf("%-20s len=%d time=%v
+", name, len(s), time.Since(start))
 }
 
 func main() {
-	fmt.Printf("+ operator   : %v\n", bench("plus", func() { concatPlus() }))
-	fmt.Printf("fmt.Sprintf  : %v\n", bench("sprintf", func() { concatSprintf() }))
-	fmt.Printf("bytes.Buffer : %v\n", bench("buffer", func() { concatBuffer() }))
-	fmt.Printf("strings.Builder: %v\n", bench("builder", func() { concatBuilder() }))
-	fmt.Println("Winner: strings.Builder (pre-allocated, no extra copy)")
+	bench("+ operator", concatPlus)
+	bench("bytes.Buffer", concatBuffer)
+	bench("strings.Builder", concatBuilder)
 
-	rows := [][]string{
-		{"name", "age", "city"},
-		{"Alice", "30", "NYC"},
-		{"Bob", "25", "LA"},
-	}
-	fmt.Println("\nCSV output:")
+	rows := [][]string{{"name","age"},{"Alice","30"},{"Bob","25"}}
 	fmt.Println(toCSV(rows))
+	// Expected:
+	// name,age
+	// Alice,30
+	// Bob,25
 }

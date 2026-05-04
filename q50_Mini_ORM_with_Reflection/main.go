@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -13,91 +16,57 @@ type User struct {
 	Age   int    `db:"age"`
 }
 
-// CreateTable generates CREATE TABLE SQL from struct tags
+// TODO: CreateTable generates "CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY, ...)"
+// Use reflect to read db tags and map Go types to SQL types:
+// int → INTEGER, string → TEXT, float64 → REAL, bool → BOOLEAN
+// Field with tag "id" gets "PRIMARY KEY AUTOINCREMENT"
 func CreateTable(v any) string {
-	t := reflect.TypeOf(v)
-	if t.Kind() == reflect.Ptr { t = t.Elem() }
-
-	goToSQL := map[reflect.Kind]string{
-		reflect.Int: "INTEGER", reflect.String: "TEXT", reflect.Float64: "REAL", reflect.Bool: "BOOLEAN",
-	}
-	var cols []string
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		tag := f.Tag.Get("db")
-		if tag == "" || tag == "-" { continue }
-		sqlType := goToSQL[f.Type.Kind()]
-		extra := ""
-		if tag == "id" { extra = " PRIMARY KEY AUTOINCREMENT" }
-		cols = append(cols, fmt.Sprintf("  %s %s%s", tag, sqlType, extra))
-	}
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n%s\n);", strings.ToLower(t.Name()), strings.Join(cols, ",\n"))
+	// TODO: implement using reflect.TypeOf
+	_ = strings.ToLower // hint
+	return ""
 }
 
-// Insert generates INSERT SQL and values list
+// TODO: Insert generates "INSERT INTO user (name, email, age) VALUES ($1, $2, $3)"
+// Skip the "id" field. Return (sql string, values []any)
 func Insert(v any) (string, []any) {
-	rv := reflect.ValueOf(v)
-	rt := reflect.TypeOf(v)
-	if rv.Kind() == reflect.Ptr { rv = rv.Elem(); rt = rt.Elem() }
-
-	var cols, placeholders []string
-	var values []any
-	ph := 1
-	for i := 0; i < rt.NumField(); i++ {
-		f := rt.Field(i)
-		tag := f.Tag.Get("db")
-		if tag == "" || tag == "-" || tag == "id" { continue }
-		cols = append(cols, tag)
-		placeholders = append(placeholders, fmt.Sprintf("$%d", ph)); ph++
-		values = append(values, rv.Field(i).Interface())
-	}
-	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-		strings.ToLower(rt.Name()), strings.Join(cols, ", "), strings.Join(placeholders, ", "))
-	return sql, values
+	// TODO: implement using reflect.TypeOf and reflect.ValueOf
+	return "", nil
 }
 
-// ScanInto simulates scanning rows into structs using reflection
+// TODO: ScanInto maps []map[string]any rows into a slice of structs
+// Match map keys to db tags, set field values using reflection
 func ScanInto(rows []map[string]any, target any) {
-	slicePtr := reflect.ValueOf(target).Elem()
-	elemType := slicePtr.Type().Elem()
-
-	for _, row := range rows {
-		elem := reflect.New(elemType).Elem()
-		for i := 0; i < elemType.NumField(); i++ {
-			f := elemType.Field(i)
-			tag := f.Tag.Get("db")
-			if val, ok := row[tag]; ok {
-				fv := elem.Field(i)
-				rv := reflect.ValueOf(val)
-				if rv.Type().ConvertibleTo(fv.Type()) {
-					fv.Set(rv.Convert(fv.Type()))
-				}
-			}
-		}
-		slicePtr.Set(reflect.Append(slicePtr, elem))
-	}
+	// TODO: implement using reflect.ValueOf(target).Elem()
 }
 
 func main() {
-	u := User{}
-
 	fmt.Println("=== CREATE TABLE ===")
-	fmt.Println(CreateTable(u))
+	fmt.Println(CreateTable(User{}))
+	// Expected:
+	// CREATE TABLE IF NOT EXISTS user (
+	//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+	//   name TEXT,
+	//   email TEXT,
+	//   age INTEGER
+	// );
 
-	fmt.Println("\n=== INSERT ===")
-	u2 := User{Name: "Alice", Email: "alice@example.com", Age: 30}
-	sql, vals := Insert(u2)
-	fmt.Println("SQL:", sql)
-	fmt.Println("Values:", vals)
+	fmt.Println("
+=== INSERT ===")
+	sql, vals := Insert(User{Name: "Alice", Email: "alice@x.com", Age: 30})
+	fmt.Println(sql)
+	fmt.Println(vals)
+	// Expected:
+	// INSERT INTO user (name, email, age) VALUES ($1, $2, $3)
+	// [Alice alice@x.com 30]
 
-	fmt.Println("\n=== SCAN INTO ===")
+	fmt.Println("
+=== SCAN ===")
 	rows := []map[string]any{
-		{"id": 1, "name": "Alice", "email": "alice@example.com", "age": 30},
-		{"id": 2, "name": "Bob",   "email": "bob@example.com",   "age": 25},
+		{"id": 1, "name": "Alice", "email": "alice@x.com", "age": 30},
+		{"id": 2, "name": "Bob",   "email": "bob@x.com",   "age": 25},
 	}
 	var users []User
 	ScanInto(rows, &users)
-	for _, u := range users {
-		fmt.Printf("  %+v\n", u)
-	}
+	for _, u := range users { fmt.Printf("  %+v
+", u) }
 }

@@ -1,3 +1,6 @@
+//go:build ignore
+// Remove the above line when implementing
+
 package main
 
 import (
@@ -7,6 +10,7 @@ import (
 	"time"
 )
 
+// TODO: increment count 100000 times concurrently using sync.Mutex
 func mutexCounter(n int) int64 {
 	var mu sync.Mutex
 	var count int64
@@ -15,13 +19,14 @@ func mutexCounter(n int) int64 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			mu.Lock(); count++; mu.Unlock()
+			// TODO: lock, increment count, unlock
 		}()
 	}
 	wg.Wait()
 	return count
 }
 
+// TODO: increment 100000 times using atomic.Int64 — no mutex needed
 func atomicCounter(n int) int64 {
 	var count atomic.Int64
 	var wg sync.WaitGroup
@@ -29,21 +34,18 @@ func atomicCounter(n int) int64 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			count.Add(1)
+			// TODO: count.Add(1)
 		}()
 	}
 	wg.Wait()
 	return count.Load()
 }
 
-func bench(name string, fn func(int) int64) {
-	start := time.Now()
-	result := fn(100000)
-	fmt.Printf("%s: count=%d time=%v\n", name, result, time.Since(start))
-}
-
 func main() {
-	bench("Mutex  counter", mutexCounter)
-	bench("Atomic counter", atomicCounter)
-	fmt.Println("Atomic is faster — no lock/unlock overhead")
+	start := time.Now()
+	fmt.Println("mutex :", mutexCounter(100000), "time:", time.Since(start))
+
+	start = time.Now()
+	fmt.Println("atomic:", atomicCounter(100000), "time:", time.Since(start))
+	// Expected: both = 100000, atomic is faster
 }

@@ -9,62 +9,42 @@ type TrieNode struct {
 
 type Trie struct{ root *TrieNode }
 
-func NewTrie() *Trie { return &Trie{root: &TrieNode{children: make(map[rune]*TrieNode)}} }
+func NewTrie() *Trie {
+	return &Trie{root: &TrieNode{children: make(map[rune]*TrieNode)}}
+}
 
+// TODO: Insert adds word char-by-char, marks last node isEnd=true
 func (t *Trie) Insert(word string) {
-	node := t.root
-	for _, ch := range word {
-		if _, ok := node.children[ch]; !ok {
-			node.children[ch] = &TrieNode{children: make(map[rune]*TrieNode)}
-		}
-		node = node.children[ch]
-	}
-	node.isEnd = true
+	// TODO: implement
 }
 
+// TODO: Search returns true only if word exists AND last node isEnd=true
 func (t *Trie) Search(word string) bool {
-	node := t.root
-	for _, ch := range word {
-		if _, ok := node.children[ch]; !ok { return false }
-		node = node.children[ch]
-	}
-	return node.isEnd
+	// TODO: implement
+	return false
 }
 
+// TODO: StartsWith returns true if any word begins with prefix
 func (t *Trie) StartsWith(prefix string) bool {
-	node := t.root
-	for _, ch := range prefix {
-		if _, ok := node.children[ch]; !ok { return false }
-		node = node.children[ch]
-	}
-	return true
+	// TODO: implement
+	return false
 }
 
+// TODO: Autocomplete returns all words starting with prefix (DFS from prefix node)
 func (t *Trie) Autocomplete(prefix string) []string {
-	node := t.root
-	for _, ch := range prefix {
-		if _, ok := node.children[ch]; !ok { return nil }
-		node = node.children[ch]
-	}
-	var results []string
-	var dfs func(n *TrieNode, cur string)
-	dfs = func(n *TrieNode, cur string) {
-		if n.isEnd { results = append(results, cur) }
-		for ch, child := range n.children { dfs(child, cur+string(ch)) }
-	}
-	dfs(node, prefix)
-	return results
+	// TODO: navigate to prefix end, then DFS collecting isEnd words
+	return nil
 }
 
 func main() {
 	t := NewTrie()
-	words := []string{"apple", "app", "application", "apply", "banana", "band", "bandana"}
-	for _, w := range words { t.Insert(w) }
+	for _, w := range []string{"app", "apple", "apply", "application", "banana"} {
+		t.Insert(w)
+	}
 
-	fmt.Println("Search 'app'        :", t.Search("app"))
-	fmt.Println("Search 'ap'         :", t.Search("ap"))
-	fmt.Println("StartsWith 'app'    :", t.StartsWith("app"))
-	fmt.Println("StartsWith 'xyz'    :", t.StartsWith("xyz"))
-	fmt.Println("Autocomplete 'app'  :", t.Autocomplete("app"))
-	fmt.Println("Autocomplete 'ban'  :", t.Autocomplete("ban"))
+	fmt.Println(t.Search("app"))         // true
+	fmt.Println(t.Search("ap"))          // false
+	fmt.Println(t.StartsWith("app"))     // true
+	fmt.Println(t.StartsWith("xyz"))     // false
+	fmt.Println(t.Autocomplete("app"))   // [app apple apply application] (any order)
 }

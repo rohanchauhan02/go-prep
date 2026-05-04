@@ -2,62 +2,40 @@ package main
 
 import "fmt"
 
-// 1. Exact match
+// TODO: exact binary search — return index or -1
 func binarySearch(arr []int, target int) int {
-	lo, hi := 0, len(arr)-1
-	for lo <= hi {
-		mid := lo + (hi-lo)/2
-		if arr[mid] == target { return mid } else if arr[mid] < target { lo = mid + 1 } else { hi = mid - 1 }
-	}
+	// TODO: lo, hi, mid — standard binary search
 	return -1
 }
 
-// 2. First occurrence
+// TODO: first occurrence of target — return leftmost index or -1
 func firstOccurrence(arr []int, target int) int {
-	lo, hi, res := 0, len(arr)-1, -1
-	for lo <= hi {
-		mid := lo + (hi-lo)/2
-		if arr[mid] == target { res = mid; hi = mid - 1 } else if arr[mid] < target { lo = mid + 1 } else { hi = mid - 1 }
-	}
-	return res
+	// TODO: when found, save result and continue left (hi = mid-1)
+	return -1
 }
 
-// 3. Last occurrence
+// TODO: last occurrence of target — return rightmost index or -1
 func lastOccurrence(arr []int, target int) int {
-	lo, hi, res := 0, len(arr)-1, -1
-	for lo <= hi {
-		mid := lo + (hi-lo)/2
-		if arr[mid] == target { res = mid; lo = mid + 1 } else if arr[mid] < target { lo = mid + 1 } else { hi = mid - 1 }
-	}
-	return res
+	// TODO: when found, save result and continue right (lo = mid+1)
+	return -1
 }
 
-// 4. Rotated sorted array
+// TODO: search in rotated sorted array — O(log n)
+// Hint: one half is always sorted — check which and narrow accordingly
 func searchRotated(arr []int, target int) int {
-	lo, hi := 0, len(arr)-1
-	for lo <= hi {
-		mid := lo + (hi-lo)/2
-		if arr[mid] == target { return mid }
-		if arr[lo] <= arr[mid] { // left half sorted
-			if arr[lo] <= target && target < arr[mid] { hi = mid - 1 } else { lo = mid + 1 }
-		} else { // right half sorted
-			if arr[mid] < target && target <= arr[hi] { lo = mid + 1 } else { hi = mid - 1 }
-		}
-	}
+	// TODO: implement
 	return -1
 }
 
 func main() {
-	sorted := []int{1, 2, 2, 2, 3, 4, 5}
-	fmt.Println("=== Binary Search Variants ===")
-	fmt.Println("Exact 2         :", binarySearch(sorted, 2))
-	fmt.Println("First 2         :", firstOccurrence(sorted, 2))
-	fmt.Println("Last 2          :", lastOccurrence(sorted, 2))
-	fmt.Println("Exact 6 (miss)  :", binarySearch(sorted, 6))
+	arr := []int{1, 2, 2, 2, 3, 4, 5}
+	fmt.Println(binarySearch(arr, 2))       // any valid index (1,2,3)
+	fmt.Println(firstOccurrence(arr, 2))    // Expected: 1
+	fmt.Println(lastOccurrence(arr, 2))     // Expected: 3
+	fmt.Println(binarySearch(arr, 6))       // Expected: -1
 
 	rotated := []int{4, 5, 6, 7, 0, 1, 2}
-	fmt.Println("\nRotated array:", rotated)
-	for _, t := range []int{0, 3, 7} {
-		fmt.Printf("  search %d → index %d\n", t, searchRotated(rotated, t))
-	}
+	fmt.Println(searchRotated(rotated, 0))  // Expected: 4
+	fmt.Println(searchRotated(rotated, 3))  // Expected: -1
+	fmt.Println(searchRotated(rotated, 7))  // Expected: 3
 }

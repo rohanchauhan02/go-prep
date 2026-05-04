@@ -14,6 +14,7 @@ import (
 var inFlight sync.WaitGroup
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: write 200 {"status":"ok"}
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, `{"status":"ok"}`)
 }
@@ -21,7 +22,8 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func processHandler(w http.ResponseWriter, r *http.Request) {
 	inFlight.Add(1)
 	defer inFlight.Done()
-	time.Sleep(2 * time.Second) // simulate long work
+	// TODO: simulate 2s work, then respond "processed"
+	time.Sleep(2 * time.Second)
 	fmt.Fprintln(w, "processed")
 }
 
@@ -32,27 +34,26 @@ func main() {
 
 	srv := &http.Server{Addr: ":8080", Handler: mux}
 
-	// Start server
+	// TODO: start server in goroutine
 	go func() {
-		fmt.Println("Server listening on :8080")
+		fmt.Println("listening :8080")
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			fmt.Fprintln(os.Stderr, "ListenAndServe error:", err)
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}()
 
-	// Wait for SIGINT/SIGTERM
+	// TODO: listen for SIGINT/SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	fmt.Println("Shutdown signal received...")
+	fmt.Println("shutting down...")
 
-	// Give in-flight requests 5s to complete
+	// TODO: give in-flight requests 5s to finish
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	if err := srv.Shutdown(ctx); err != nil {
-		fmt.Println("Forced shutdown:", err)
+		fmt.Println("forced:", err)
 	}
 	inFlight.Wait()
-	fmt.Println("Server exited cleanly")
+	fmt.Println("clean exit")
 }
