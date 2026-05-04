@@ -671,3 +671,207 @@ func handler(w http.ResponseWriter, r *http.Request) {
 ---
 
 *Reference: [Go runtime source](https://github.com/golang/go/tree/master/src/runtime) — `proc.go`, `runtime2.go`, `malloc.go`, `mgc.go`*
+
+---
+
+---
+
+# Plain English Explanations
+
+> Everything above in human language. Read this if the code blocks feel dense. Then go back and the code will click immediately.
+
+---
+
+## 1. Thread vs Goroutine — Explained
+
+An **OS thread** is created by the operating system kernel. Every thread gets a fixed block of memory (usually 1–8 MB) reserved for its stack, even if it only uses a fraction of it. Creating a thread involves a kernel syscall which takes ~1 millisecond. Switching between threads (context switching) forces the CPU into kernel mode and takes 1–10 microseconds. Because of this cost, you can only realistically run thousands of threads before the machine runs out of memory and CPU time.
+
+A **goroutine** is not a thread. It is a lightweight unit of work managed entirely by the Go runtime in user space — the kernel knows nothing about it. A goroutine starts with just 2 KB of stack and grows on demand. Creating a goroutine takes ~0.3 microseconds (3000x faster than a thread) because no kernel call is needed. Switching between goroutines takes ~100 nanoseconds because the runtime does it entirely in user space without involving the OS.
+
+This means a Go program can comfortably run **millions of goroutines** on just a handful of OS threads — the Go runtime multiplexes them efficiently.
+
+The analogy: OS threads are like trucks — powerful but expensive and slow to deploy. Goroutines are like motorcycles — cheap, fast, and you can have thousands of them weaving through the same lanes (OS threads).
+
+---
+
+## 2. GMP Model — Explained
+
+The GMP model is the heart of Go's scheduler. It has three building blocks:
+
+**G — Goroutine.** This represents a unit of concurrent work. Every time you write `go func()`, the runtime creates a G. A G holds the function to run, its current stack, saved CPU registers (so it can be paused and resumed), and a status flag (runnable, running, waiting, dead). A G is just a struct in memory — very cheap.
+
+**M — Machine (OS Thread).** An M is an actual OS thread. It is the thing that physically executes code on a CPU core. An M can only run one G at a time. The number of Ms in a program can grow beyond GOMAXPROCS — extra Ms are created when goroutines block on system calls (so other Ps can keep working).
+
+**P — Processor (Logical CPU).** A P is a logical processor — think of it as a "slot" that connects an M to a run queue of Gs. The number of Ps is controlled by `GOMAXPROCS` (default = number of CPU cores). Each P has its own private **run queue** of up to 256 goroutines. Crucially, each P also has its own **memory cache (mcache)** so small allocations don't need any locks.
+
+**How they work together:** An M must hold a P to run goroutines. When M picks up a P, it looks in P's local run queue, picks the next G, and starts executing it. If P's queue is empty, the M steals work from other Ps. If M blocks on a system call (like reading a file), the P immediately detaches from M and attaches to a different idle M — so the P keeps running other goroutines uninterrupted.
+
+The ratio is roughly: **N Ps** (one per CPU core), **N or more Ms** (can temporarily exceed P count during syscalls), **millions of Gs** distributed across Ps.
+
+---
+
+## 3. Goroutine Lifecycle — Explained
+
+A goroutine moves through five states during its lifetime:
+
+**Runnable:** The goroutine is ready to run but is waiting for a P to pick it up. It sits in a run queue (either a P's local queue or the global queue).
+
+**Running:** The goroutine is actively executing on an M. Only one goroutine can be in the Running state per P at any time.
+
+**Waiting:** The goroutine is blocked — it's waiting for something. This might be a channel receive/send, a mutex lock, a timer, a network read, or a GC pause. While waiting, it does NOT occupy an M or P. The M and P are free to run other goroutines. When the awaited event happens (e.g. someone sends to the channel), the goroutine moves back to Runnable.
+
+**Syscall:** The goroutine is inside an OS system call. The M is blocked in kernel mode. When this happens, the P immediately detaches and either finds an idle M or creates a new one. This is how Go avoids stalling other goroutines when one does file IO.
+
+**Dead:** The goroutine has finished. The runtime doesn't immediately discard the G struct — it reuses it for the next `go` call to avoid allocation overhead.
+
+The key insight: **blocked goroutines don't waste CPU**. They park themselves and give the M+P back to productive work.
+
+---
+
+## 4. Work Stealing — Explained
+
+Work stealing solves the load balancing problem: what should a P do when its run queue is empty while other Ps are overloaded?
+
+The naive answer — a global job queue — creates a bottleneck because every P would need to lock it to read or write. Go avoids this with per-P local queues and work stealing.
+
+**Here's the stealing algorithm in order:**
+1. Check if there's a goroutine in `P.runnext` (the highest-priority slot, set when a goroutine is just unblocked).
+2. Check P's own local run queue (circular buffer of 256 slots, lock-free using atomic operations).
+3. Every 61 scheduling ticks, check the global run queue. This prevents goroutines in the global queue from starving if local queues stay full.
+4. Check the network poller for goroutines that are now ready (IO completed).
+5. **Steal** from another randomly chosen P — take exactly half their local queue.
+
+The steal operation uses **atomic compare-and-swap (CAS)** instructions — no locks, no kernel involvement. This is why Go's scheduler scales well even with hundreds of Ps.
+
+If after all this there's still no work, the M marks itself as "spinning" (actively looking for work) and eventually parks itself (goes to sleep until signalled by a `go` call).
+
+**Why stealing half?** Taking half distributes work evenly. Taking one at a time would cause too many steal attempts; taking all would create the same imbalance on the other side.
+
+---
+
+## 5. Preemption — Explained
+
+**The problem:** What if a goroutine runs a tight CPU loop and never calls any Go functions or does any IO? Early versions of Go's scheduler relied on *cooperative preemption* — goroutines had to voluntarily yield by calling any function (which includes a stack overflow check). A tight loop with no function calls could monopolize a P forever, starving other goroutines.
+
+**Old solution (Go < 1.14) — Cooperative:** The Go compiler inserts a preemption check at the beginning of every function call. When `sysmon` (a background goroutine) detects a goroutine has been running for more than 10ms, it sets a `preempt` flag on that goroutine's G struct. The next time the goroutine calls any function, the check fires, and the goroutine is paused.
+
+**New solution (Go 1.14+) — Asynchronous:** The runtime sends a `SIGURG` Unix signal to the OS thread running the goroutine. The signal handler interrupts execution at the next "safe point" (a point where the GC can safely inspect the stack). This works even in tight loops with no function calls. The goroutine is paused and another one runs.
+
+`runtime.Gosched()` is a manual yield — you call it explicitly to tell the scheduler "I'm done with my time slice, run someone else." Useful in CPU-bound goroutines that want to be cooperative.
+
+The `sysmon` goroutine (system monitor) runs in a dedicated OS thread and wakes up every 20µs to 10ms, handling preemption, retaking Ps from goroutines stuck in long system calls, and triggering GC.
+
+---
+
+## 6. Goroutine Stack Management — Explained
+
+Every goroutine starts with a tiny 2 KB stack (down from 8 KB in early Go versions). This is so cheap that you can create millions of goroutines without running out of memory. But what if a goroutine needs more stack — deep recursive calls, large local arrays?
+
+**Stack growth:** The Go compiler inserts a stack overflow check at the start of every function. If the current stack pointer (SP) is close to the bottom of the allocated stack, Go calls `morestack()`. This function allocates a **new, larger stack (2x the current size)**, copies all existing stack frames to the new stack, updates every pointer on the stack that points to another stack location (these would be dangling after the copy), and then resumes the function. The old stack is freed.
+
+This is called a **contiguous stack** (vs Go's old "segmented stack" model which had the "hot-split" performance problem).
+
+**Stack shrinking:** During GC, the runtime scans all goroutine stacks. If a stack's actual usage has fallen below 25% of its allocated size (e.g. a recursive function returned and unwound deeply), Go shrinks the stack to half its current size. This reclaims memory from goroutines that had a burst of deep calls but are now mostly idle.
+
+**Why this matters for you:** Stack-allocated variables in Go are safe to point to even after the function that created them returns — because if the stack grows, all pointers are updated. Go's escape analysis decides at compile time whether a variable should live on the stack or the heap, and it makes the right choice automatically.
+
+---
+
+## 7. Garbage Collector — Explained
+
+Go uses a **concurrent, tri-color, mark-and-sweep garbage collector**. Let's break each word down:
+
+**Mark-and-sweep:** GC happens in two phases. First, *mark* — traverse the object graph from all roots (global variables, goroutine stacks, CPU registers) and mark every reachable object as "alive". Second, *sweep* — reclaim all memory occupied by objects that were *not* marked (they're unreachable and therefore garbage).
+
+**Tri-color:** Objects are assigned one of three colors at any moment. **White** means "not yet visited" (potentially garbage). **Grey** means "visited but children not yet scanned". **Black** means "fully scanned, keep this". The GC starts by making everything white, marks roots grey, and then processes grey objects until none remain — everything still white is garbage.
+
+**Concurrent:** The mark phase runs *alongside* your application code (the "mutator"). Your goroutines keep running while GC marks objects. This is why Go's GC pauses are sub-millisecond — you only stop the world briefly at the start and end of the mark phase (~100µs each), not during the entire collection.
+
+**Write barrier:** The challenge of concurrent marking is that your program might modify pointers while GC is scanning. For example, a goroutine might take a white (unmarked) object and store it inside a black (fully scanned) object — now GC would never find it and would incorrectly free it. The *write barrier* prevents this: every pointer store in your program includes a tiny runtime snippet that "shades" the old and new pointer values grey if they're white. This keeps the invariant "no black object points directly to a white object" intact throughout concurrent marking.
+
+**GOGC:** This is the knob that controls how often GC runs. `GOGC=100` (default) means GC runs when the heap has grown 100% from the size after the last collection (i.e. doubles). Set `GOGC=200` to reduce GC frequency at the cost of using more memory. Set `GOMEMLIMIT` (Go 1.19+) as an absolute memory ceiling.
+
+**Memory Allocator:** Go's allocator is inspired by TCMalloc. There are 67 size classes from 8 bytes to 32 KB. Small allocations (< 32 KB) go through `mcache` — a per-P cache with no locking required (since only one goroutine runs per P at a time). When the mcache is empty, it refills from `mcentral` (shared, locked). Large allocations (> 32 KB) go directly to `mheap`. This tiered system is why Go allocation is extremely fast for small objects.
+
+---
+
+## 8. Memory Model & Happens-Before — Explained
+
+The **Go Memory Model** is a specification that defines when one goroutine is *guaranteed* to see the memory writes of another goroutine.
+
+**The problem:** Modern CPUs reorder instructions and cache writes in registers. Without explicit synchronization, there is no guarantee that a write in goroutine A is visible to goroutine B, even if A wrote first in wall-clock time.
+
+**Happens-before** is the formal way to express visibility guarantees. If operation A *happens-before* operation B, then B is guaranteed to see all memory effects of A.
+
+Go's rules for happens-before relationships:
+- A **channel send** happens-before the **corresponding receive** completes. So if you write a value then send on a channel, the receiver is guaranteed to see that write.
+- A **mutex Unlock** happens-before the next **Lock** on the same mutex. So all writes done before unlocking are visible to the next locker.
+- `sync.Once.Do(f)` — the completion of `f` happens-before the return of any other `Do` call. Singleton initialization is safe.
+- A **goroutine's start** happens-before any code in that goroutine.
+
+**Data race:** A data race occurs when two goroutines access the same variable concurrently, at least one access is a write, and there is no synchronization (no mutex, channel, atomic). The Go Memory Model says the behavior is *undefined* — you might read stale data, corrupt data, or trigger a crash. Always use `-race` flag in tests: `go test -race ./...`. The race detector adds ~5-10x overhead but catches races reliably.
+
+---
+
+## 9. Runtime Introspection — Explained
+
+Go gives you first-class tools to observe the runtime from inside your code and from external tools.
+
+**`runtime.NumGoroutine()`** returns the number of live goroutines right now. Call it before and after suspected leak areas. A continuously growing number means goroutines are leaking.
+
+**`runtime.ReadMemStats(&ms)`** fills a `MemStats` struct with everything about heap usage, GC cycles, pause times, and allocations. Key fields: `HeapAlloc` (live bytes), `NumGC` (total GC cycles), `PauseTotalNs` (total STW time), `Mallocs` and `Frees` (allocation rate). Force a GC first with `runtime.GC()` to get up-to-date heap stats.
+
+**`runtime.Stack(buf, true)`** dumps the stack trace of all goroutines into a buffer. The `true` argument means "include all goroutines, not just the current one". This is invaluable for diagnosing what every goroutine is waiting on. It's the same output you see on a panic.
+
+**`pprof`** is Go's profiling framework. It captures:
+- **CPU profile** — where is your program spending CPU time? Samples the call stack every 10ms.
+- **Heap profile** — what is allocated on the heap and where was it allocated?
+- **Goroutine profile** — stack traces of all current goroutines (great for leak detection).
+- **Block profile** — where are goroutines blocking on channels and mutexes?
+- **Mutex profile** — which mutexes are contended?
+
+Importing `_ "net/http/pprof"` automatically registers HTTP endpoints under `/debug/pprof/` so you can profile a live production service without restarting.
+
+**`go tool trace`** gives you a visual timeline of scheduler events — which goroutine ran on which P, when GC paused, when goroutines blocked and woke up. It's the most detailed view of Go runtime behavior.
+
+---
+
+## 10. Common Pitfalls & Tuning — Explained
+
+**Goroutine leaks** are the most common production issue in Go services. Every blocked goroutine consumes memory (its stack) and may hold references that prevent GC from collecting objects. The fix is always the same: use context cancellation so goroutines know when to exit. Monitor `runtime.NumGoroutine()` in your health endpoint.
+
+**False sharing** is a subtle CPU cache performance issue. CPU caches work in 64-byte "cache lines". If two goroutines on different CPU cores frequently write to different fields of the same struct, they may land on the same cache line. Every write forces the other core to invalidate its cache copy — causing dramatic slowdowns despite having no logical conflict. Fix: add padding between hot fields to put them on separate cache lines.
+
+**Spinning vs Parking:** If you implement a wait loop with `runtime.Gosched()`, you're wasting CPU — the goroutine loops constantly doing nothing useful. Prefer `sync.Cond.Wait()`, channel receives, or `time.Sleep()` which properly *park* the goroutine (remove it from the scheduler entirely until woken up).
+
+**GOMAXPROCS in containers** is a classic trap. Go sets GOMAXPROCS to `runtime.NumCPU()` at startup. But in a Docker/Kubernetes container with CPU limits, `NumCPU()` returns the *host* machine's core count, not your container's quota (e.g. 0.5 CPU). Having 32 Ps competing for 0.5 CPU causes excessive context switching and high latency. Use the `automaxprocs` library or set GOMAXPROCS manually to match your CPU limit.
+
+**`sync.Pool`** is a cache for reusable objects. Instead of allocating a new 4 KB buffer for every HTTP request, you `Get()` one from the pool, use it, and `Put()` it back. This dramatically reduces GC pressure in high-throughput services. Important: Pool objects are cleared at every GC cycle, so don't use Pool to store persistent state — only scratch buffers and temporary objects.
+
+**GOGC and GOMEMLIMIT tuning:**
+- Latency-sensitive services (APIs, game servers): raise GOGC to 200–400 so GC runs less frequently. Accept higher memory usage in exchange for fewer GC pauses.
+- Memory-constrained environments (containers): set GOMEMLIMIT to your container's memory limit minus headroom. This prevents OOM kills by triggering GC earlier when memory is tight.
+- Batch jobs: set GOGC=off and trigger `runtime.GC()` manually at checkpoints for maximum throughput.
+
+---
+
+## The Big Picture — Everything Connected
+
+Here is how all the pieces fit together when you write `go doWork()`:
+
+1. The compiler generates a call to `runtime.newproc`, which allocates a **G** struct (2 KB stack), sets it to `_Grunnable`, and places it in the current **P**'s `runnext` slot.
+
+2. The P's **M** finishes the current G (or the G blocks), picks up the new G, and starts executing it. This is purely user-space — no kernel involved.
+
+3. If `doWork` blocks on a channel: the G transitions to `_Gwaiting`. The M immediately picks the next G from the local run queue. The blocked G is stored inside the channel's wait queue. Zero CPU wasted.
+
+4. If `doWork` calls a blocking system call (like `read`): the M enters kernel mode. Go's runtime detects this (via `entersyscall`) and **detaches the P** from the M. The P finds or creates another M and keeps running other goroutines. When the syscall returns, the original M tries to reclaim a P — if none available, it parks itself and the G goes to the global run queue.
+
+5. While all this happens, the **GC** runs concurrently on a separate set of goroutines, marking live objects. It uses write barriers to stay consistent with your running program. Every 100µs or so you get a sub-millisecond STW pause for coordination.
+
+6. **sysmon** runs in the background watching for goroutines that have been running too long (> 10ms) and sends `SIGURG` to preempt them. It also rebalances Ps stuck in system calls and polls the network for IO-ready goroutines.
+
+7. **Work stealing** ensures that if one P finishes all its work while another P has 200 goroutines queued, the idle P takes 100 of them — keeping all CPU cores productive.
+
+The result: **millions of goroutines, microsecond-level scheduling, sub-millisecond GC pauses, near-linear CPU scaling** — all built into a language with no manual memory management and simple concurrency primitives.
+
